@@ -1,7 +1,8 @@
 import requests
 from datetime import datetime, timedelta
+import asyncio
 
-def fetch_baro_data(json_data):
+async def fetch_baro_data(json_data):
 
     #print("BARO JSON: ",json_data)
 
@@ -58,6 +59,8 @@ def fetch_baro_data(json_data):
            # print("Most recent created datetime:", most_recent_obj_datetime_baro.created_at_datetime)
             #print("Most recent string:", most_recent_obj_str.created_at_str)
             #print("STRING : ",formatted_string)
+
+            await asyncio.sleep(1)
 
             return baro_objects
     

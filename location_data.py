@@ -1,9 +1,14 @@
 import requests, json
 from datetime import datetime, timedelta
+import asyncio
 
-def fetch_location_data(json_data):
+async def fetch_location_data(json_data):
 
     jsonDic = json_data
+
+    print("jsonDic CURRENT VALUES : ", jsonDic)
+
+    print("jsonDic Type:",type(jsonDic))
 
     # Create a constructor class
     class LocationSensor:
@@ -43,11 +48,16 @@ def fetch_location_data(json_data):
                     recorded_at_datetime
                 )
                 location_objects.append(obj_instance)
+        print("obj_data Type:",type(obj_data))
+
+        print("JSON Data Type:", type(json_data))
+        print("First Element Type:", type(json_data[0]) if json_data else "Empty List")
 
 
    # Check if "vb_location" sensor key is found in the JSON data
         sensor_key_value = "vb_location"
-        if any(obj_data.get("sensor", {}).get("sensor_key") == sensor_key_value for obj_data in jsonDic)and len(location_objects) > 0:
+        
+        if any(obj_data.get("sensor", {}).get("sensor_key") == sensor_key_value for obj_data in jsonDic) and len(location_objects) > 0:
             
             
             print(f"'{sensor_key_value}' is found in the JSON data.")
@@ -65,6 +75,8 @@ def fetch_location_data(json_data):
             #print("Most recent created datetime:", most_recent_obj_datetime.created_at_datetime)
             #print("Most recent string:", most_recent_obj_str.created_at_str)
             #print("STRING : ",formatted_string)
+
+            await asyncio.sleep(1)
 
             return location_objects
             
