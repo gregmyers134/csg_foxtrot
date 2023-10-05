@@ -1,53 +1,76 @@
-import aiohttp
 import asyncio
+from location_data import fetch_location_data
+from baro_data import fetch_baro_data
+import requests
+from datetime import datetime, timedelta
 
-async def find_most_recent_baro(baro_objects):
-    if not baro_objects:
-        print("No baro_objects found.")
-        return None
+def find_most_recent_location(location_objects):
+    most_recent_locations = {}
+    for location_obj in location_objects:
+        serial_number = location_obj.serial_number
+        if serial_number in most_recent_locations:
+            if location_obj.recorded_at_datetime > most_recent_locations[serial_number].recorded_at_datetime:
+                most_recent_locations[serial_number] = location_obj
+        else:
+            most_recent_locations[serial_number] = location_obj
+    return most_recent_locations
 
-    most_recent_baro = None
+def find_most_recent_baro(baro_objects):
+    most_recent_baro = {}
     for baro_obj in baro_objects:
-        if not isinstance(baro_obj, dict):
-            print(f"Skipping invalid baro_obj of type {type(baro_obj)}")
-            continue
-
-        # Your logic for finding the most recent baro goes here.
-        # For example, you might update most_recent_baro based on some condition.
-
+        serial_number = baro_obj.serial_number
+        if serial_number in most_recent_baro:
+            if baro_obj.recorded_at_datetime > most_recent_baro[serial_number].recorded_at_datetime:
+                most_recent_baro[serial_number] = baro_obj
+        else:
+            most_recent_baro[serial_number] = baro_obj
     return most_recent_baro
 
-async def location_data():
-    async with aiohttp.ClientSession() as session:
-        async with session.get('http://localhost:8080/location') as resp:
-            location_objects = await resp.json()
-
-    if location_objects:
-        for location_obj in location_objects:
-            latitude = location_obj.get('latitude')
-            longitude = location_obj.get('longitude')
-            # ... (rest of your code)
-    else:
-        print("No location_objects found.")
-
-    async with aiohttp.ClientSession() as session:
-        async with session.get('http://localhost:8080/baro') as resp:
-            baro_objects = await resp.json()
-
-    most_recent_baro = await find_most_recent_baro(baro_objects)
-    if most_recent_baro:
-        # Do something with most_recent_baro
-        pass
-    else:
-        print("No valid most_recent_baro found.")
-
-async def main_loop():
-    while True:
-        await location_data()
-        await asyncio.sleep(1)
-
 if __name__ == "__main__":
-    try:
-        asyncio.run(main_loop())
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    current_time = datetime.utcnow() 
+    start_datetime_default = current_time - timedelta(seconds=10)
+    end_datetime_default = current_time + timedelta(seconds=10)
+    api_secret = "e7affe51ac1e4173b69cc815812ed6df"
+    datetime_type = "recorded"
+
+    start_datetime_default_iso = start_datetime_default.isoformat() + "Z"
+    end_datetime_default_iso = end_datetime_default.isoformat() + "Z"
+
+    request_url = "https://echotech.flightinsight.io/api/devices"
+
+    payload = {
+        'start_datetime': start_datetime_default_iso,
+        'end_datetime': end_datetime_default_iso,
+        'api_secret': api_secret,
+        'datetime_type': datetime_type
+    }
+    headers = {}
+
+    response = requests.request("POST", request_url, headers=headers, data=payload)
+
+    if response.status_code == 200:
+        response_data = response.json()
+        json_data = response_data.get("data", {}).get("data", [])
+        location_objects = fetch_location_data(json_data)
+        baro_objects = fetch_baro_data(json_data)
+
+        if location_objects is not None:
+            most_recent_locations = find_most_recent_location(location_objects)
+            for serial_number, location_obj in most_recent_locations.items():
+                print(f"Serial Number: {serial_number}")
+                print(f"Most Recent Recorded At: {location_obj.recorded_at_datetime}")
+                print(f"Latitude: {location_obj.latitude}")
+                print(f"Longitude: {location_obj.longitude}")
+                print()
+        else:
+            print("MAIN: No LOCATION DATA in Time Range")
+
+        if baro_objects is not None:
+            most_recent_baro = find_most_recent_baro(baro_objects)
+            for serial_number, baro_obj in most_recent_baro.items():
+                print(f"Serial Number: {serial_number}")
+                print(f"Most Recent Recorded At: {baro_obj.recorded_at_datetime}")
+                print(f"Altitude: {baro_obj.altitude}")
+                print()
+        else:
+            print("MAIN: No BARO DATA in Time Range")
