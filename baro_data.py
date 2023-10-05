@@ -1,71 +1,28 @@
-import requests
-from datetime import datetime, timedelta
-import asyncio
+# Initialize a variable to store the last received altitude value
+last_received_altitude = 0
 
 async def fetch_baro_data(json_data):
+    global last_received_altitude  # Declare the variable as global to modify it
 
-    #print("BARO JSON: ",json_data)
-
-        # Create a constructor class
-    class BaroSensor:
-        def __init__(self, uuid, created_at_str, created_at_datetime, altitude, serial_number,recorded_at_datetime):
-            self.uuid = uuid
-            self.created_at_str = created_at_str
-            self.created_at_datetime = created_at_datetime
-            self.altitude = altitude
-            self.serial_number = serial_number
-            self.recorded_at_datetime = recorded_at_datetime
-            #self.sensor_key = sensor_key_value
-
-    # Initialize an empty list to store instances of BaroSensor
     baro_objects = []
 
-    # Iterate through the JSON data and filter based on the "sensor_key" field
+    if not json_data:
+        print("Warning: Received empty JSON data.")
+        return [last_received_altitude]  # Return the last received value as a list
+
+    baro_data_found = False
+
     for obj_data in json_data:
         if "sensor" in obj_data and "sensor_key" in obj_data["sensor"]:
             sensor_key = obj_data["sensor"]["sensor_key"]
             if "BaroAltitude" in sensor_key:
-                # Convert the created_at field to both datetime and string formats
-                created_at_datetime = datetime.fromisoformat(obj_data["created_at"])
-                created_at_str = obj_data["created_at"]
-                altitude = obj_data["value"]
-                recorded_at_datetime = datetime.fromisoformat(obj_data["recorded_at"])
-                # Create an instance of LocationSensor with both created_at formats
-                obj_instance = BaroSensor(
-                    obj_data["uuid"],
-                    created_at_str,
-                    created_at_datetime,
-                    altitude,
-                    obj_data["serial_number"],
-                    recorded_at_datetime
-                )
-                baro_objects.append(obj_instance)
+                baro_data_found = True
+                altitude = float(obj_data["value"])  # Assuming the altitude is stored in "value" key
+                last_received_altitude = altitude  # Update the last received value
+                baro_objects.append(obj_data)  # Add to baro_objects list
 
+    if not baro_data_found:
+        print(f"Warning: No BaroAltitude data found in the provided JSON. Using last received value: {last_received_altitude}")
+        return [last_received_altitude]  # Return the last received value as a list
 
-
-    # Find the class object with the most recent created_at time (datetime format)
-        sensor_key_value = "BaroAltitude"
-        if any(obj_data.get("sensor", {}).get("sensor_key") == sensor_key_value for obj_data in json_data) and len(baro_objects) > 0:
-
-            print("NUMBER OF BARO OBJECTS",len(baro_objects))
-            most_recent_obj_datetime_baro = max(baro_objects, key=lambda obj: obj.recorded_at_datetime)
-
-        # Find the class object with the most recent created_at time (string format)
-            most_recent_obj_str = max(baro_objects, key=lambda obj: obj.created_at_str)
-
-            
-            formatted_string = f"UUID: {most_recent_obj_datetime_baro.uuid}, Altitude: {most_recent_obj_datetime_baro.altitude}, Time: {most_recent_obj_datetime_baro.created_at_str}"
-            #print("Most recent recorded datetime:", most_recent_obj_datetime_baro.recorded_at_datetime)
-           # print("Most recent created datetime:", most_recent_obj_datetime_baro.created_at_datetime)
-            #print("Most recent string:", most_recent_obj_str.created_at_str)
-            #print("STRING : ",formatted_string)
-
-            await asyncio.sleep(1)
-
-            return baro_objects
-    
-    else:
-        print("no BARO DATA in RANGE")
-
-    # Now, you can use these objects to access both datetime and string representations of created_at
-    # You can also use the values from most_recent_obj_datetime or most_recent_obj_str to populate variables in a string
+    return baro_objects  # Return the list of baro objects

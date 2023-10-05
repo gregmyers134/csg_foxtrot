@@ -128,19 +128,21 @@ async def main_loop():
 
             print("FIRST OBJECT",json_data[0])
 
-            # Call the fetch_location_data function to get location_objects
+
+            # Fetch the most recent location data
             location_objects = await fetch_location_data(json_data)
-            
-            baro_objects = await fetch_baro_data(json_data)
-
-            # Populate most_recent_locations and most_recent_baro dictionaries
-            most_recent_locations = find_most_recent_location(location_objects)
-            most_recent_baro = find_most_recent_baro(baro_objects)
-
-            if location_objects is not None and isinstance(location_objects, list):
+            if location_objects is not None:
                 most_recent_locations = find_most_recent_location(location_objects)
             else:
                 print("No location data available.")
+
+            # Fetch the most recent barometric data
+            baro_objects = await fetch_baro_data(json_data)
+            if baro_objects is not None:
+                most_recent_baro = find_most_recent_baro(baro_objects)
+            else:
+                print("No barometric data available.")
+
                 
 
                 '''# Print the most recent location objects for each serial number
