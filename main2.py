@@ -1,4 +1,5 @@
 import asyncio
+import aiohttp
 from location_data import fetch_location_data
 from baro_data import fetch_baro_data
 import requests
@@ -26,7 +27,8 @@ def find_most_recent_baro(baro_objects):
             most_recent_baro[serial_number] = baro_obj
     return most_recent_baro
 
-if __name__ == "__main__":
+
+async def main():
     current_time = datetime.utcnow() 
     start_datetime_default = current_time - timedelta(seconds=10)
     end_datetime_default = current_time + timedelta(seconds=10)
@@ -46,31 +48,37 @@ if __name__ == "__main__":
     }
     headers = {}
 
-    response = requests.request("POST", request_url, headers=headers, data=payload)
+    # Making the request asynchronous
+    async with aiohttp.ClientSession() as session:
+        async with session.post(request_url, headers=headers, json=payload) as response:
+            if response.status == 200:
+                response_data = await response.json()
+                json_data = response_data.get("data", {}).get("data", [])
+                
+                # Assuming fetch_location_data and fetch_baro_data are asynchronous
+                location_objects = await fetch_location_data(json_data)
+                baro_objects = await fetch_baro_data(json_data)
 
-    if response.status_code == 200:
-        response_data = response.json()
-        json_data = response_data.get("data", {}).get("data", [])
-        location_objects = fetch_location_data(json_data)
-        baro_objects = fetch_baro_data(json_data)
+                if location_objects is not None:
+                    most_recent_locations = find_most_recent_location(location_objects)
+                    for serial_number, location_obj in most_recent_locations.items():
+                        print(f"Serial Number: {serial_number}")
+                        print(f"Most Recent Recorded At: {location_obj.recorded_at_datetime}")
+                        print(f"Latitude: {location_obj.latitude}")
+                        print(f"Longitude: {location_obj.longitude}")
+                        print()
+                else:
+                    print("MAIN: No LOCATION DATA in Time Range")
 
-        if location_objects is not None:
-            most_recent_locations = find_most_recent_location(location_objects)
-            for serial_number, location_obj in most_recent_locations.items():
-                print(f"Serial Number: {serial_number}")
-                print(f"Most Recent Recorded At: {location_obj.recorded_at_datetime}")
-                print(f"Latitude: {location_obj.latitude}")
-                print(f"Longitude: {location_obj.longitude}")
-                print()
-        else:
-            print("MAIN: No LOCATION DATA in Time Range")
+                if baro_objects is not None:
+                    most_recent_baro = find_most_recent_baro(baro_objects)
+                    for serial_number, baro_obj in most_recent_baro.items():
+                        print(f"Serial Number: {serial_number}")
+                        print(f"Most Recent Recorded At: {baro_obj.recorded_at_datetime}")
+                        print(f"Altitude: {baro_obj.altitude}")
+                        print()
+                else:
+                    print("MAIN: No BARO DATA in Time Range")
 
-        if baro_objects is not None:
-            most_recent_baro = find_most_recent_baro(baro_objects)
-            for serial_number, baro_obj in most_recent_baro.items():
-                print(f"Serial Number: {serial_number}")
-                print(f"Most Recent Recorded At: {baro_obj.recorded_at_datetime}")
-                print(f"Altitude: {baro_obj.altitude}")
-                print()
-        else:
-            print("MAIN: No BARO DATA in Time Range")
+if __name__ == "__main__":
+    asyncio.run(main())
